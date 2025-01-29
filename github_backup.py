@@ -1,4 +1,6 @@
 import os
+import tkinter as tk
+import sys
 from dotenv import load_dotenv
 from backup_logic import BackupExecutor
 from backup_logic.progress_management import ProgressManager
@@ -6,8 +8,11 @@ from logger_config import setup_logger
 from error_logger import setup_error_logger
 from input_validation import validate_input
 from backup_logic.token_validation import validate_token
+from gui_components import BackupGUIComponents
+from threading import Event
 
-def main():
+def run_cli():
+    """Run the backup process in command line mode"""
     load_dotenv()
 
     logger = setup_logger()
@@ -28,6 +33,93 @@ def main():
     except Exception as e:
         error_logger.error(f"Error during backup: {str(e)}")
         logger.error(f"Error during backup: {str(e)}")
+        sys.exit(1)
+
+def run_gui():
+    """Run the backup process with GUI interface"""
+    load_dotenv()
+
+    root = tk.Tk()
+    root.title("GitHub Repository Backup Tool")
+    
+    logger = setup_logger()
+    error_logger = setup_error_logger()
+    progress_manager = ProgressManager()
+    
+    gui = BackupGUIComponents(root)
+    pause_event = Event()
+
+    def start_backup():
+        try:
+            source_token = gui.source_token_entry.get().strip()
+            dest_token = gui.dest_token_entry.get().strip()
+            backup_dir = gui.backup_dir_entry.get().strip()
+
+            if not source_token or not dest_token or not backup_dir:
+                gui.status_area.insert(tk.END, "Error: All fields are required\n")
+                return
+
+            if not validate_token(source_token):
+                gui.status_area.insert(tk.END, "Error: Invalid source GitHub token\n")
+                return
+            if not validate_token(dest_token):
+                gui.status_area.insert(tk.END, "Error: Invalid destination GitHub token\n")
+                return
+
+            # Save configuration if checkbox is checked
+            if gui.save_config_var.get():
+                with open('.env', 'w') as f:
+                    f.write(f"SOURCE_GITHUB_TOKEN={source_token}\n")
+                    f.write(f"DEST_GITHUB_TOKEN={dest_token}\n")
+                    f.write(f"BACKUP_DIR={backup_dir}\n")
+
+            gui.start_button.config(state=tk.DISABLED)
+            gui.pause_button.config(state=tk.NORMAL)
+
+            backup_executor = BackupExecutor(logger, error_logger, progress_manager)
+            backup_executor.run_backup(
+                source_token, 
+                dest_token, 
+                backup_dir, 
+                gui.progress_var,
+                True,
+                pause_event
+            )
+
+            gui.status_area.insert(tk.END, "Backup completed successfully!\n")
+            gui.start_button.config(state=tk.NORMAL)
+            gui.pause_button.config(state=tk.DISABLED)
+
+        except Exception as e:
+            error_msg = f"Error during backup: {str(e)}\n"
+            gui.status_area.insert(tk.END, error_msg)
+            error_logger.error(error_msg)
+            gui.start_button.config(state=tk.NORMAL)
+            gui.pause_button.config(state=tk.DISABLED)
+
+    def toggle_pause():
+        if pause_event.is_set():
+            pause_event.clear()
+            gui.pause_button.config(text="Pause")
+            gui.status_area.insert(tk.END, "Resuming backup...\n")
+        else:
+            pause_event.set()
+            gui.pause_button.config(text="Resume")
+            gui.status_area.insert(tk.END, "Pausing backup...\n")
+
+    # Load values from .env if they exist
+    gui.source_token_entry.insert(0, os.getenv('SOURCE_GITHUB_TOKEN', ''))
+    gui.dest_token_entry.insert(0, os.getenv('DEST_GITHUB_TOKEN', ''))
+    gui.backup_dir_entry.insert(0, os.getenv('BACKUP_DIR', ''))
+
+    gui.start_button.config(command=start_backup)
+    gui.pause_button.config(command=toggle_pause)
+
+    root.mainloop()
 
 if __name__ == "__main__":
-    main()
+    # Check if running in CLI mode
+    if len(sys.argv) > 1 and sys.argv[1] == '--cli':
+        run_cli()
+    else:
+        run_gui()

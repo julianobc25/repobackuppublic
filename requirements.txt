@@ -1,3 +1,7 @@
 PyGithub==2.1.1
 python-dotenv==1.0.0
-pyperclip==1.8.2
+requests==2.31.0
+pathlib==1.0.1
+GitPython==3.1.40
+tk==0.1.0  # For GUI components
+ttkthemes==3.2.2  # For better looking GUI themes

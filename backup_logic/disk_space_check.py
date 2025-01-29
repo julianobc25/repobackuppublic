@@ -4,7 +4,7 @@ def check_disk_space(path):
     total, used, free = shutil.disk_usage(path)
     return total, used, free
 
-    def check_disk_space(self, path: str) -> bool:
+def check_disk_space(self, path: str) -> bool:
         """Verifica se há espaço em disco suficiente
 
         Verifica se o caminho informado tem pelo menos 1GB livre.
