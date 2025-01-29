@@ -9,7 +9,7 @@ from error_logger import setup_error_logger
 from input_validation import validate_input
 from backup_logic.token_validation import validate_token
 from gui_components import BackupGUIComponents
-from threading import Event
+from threading import Event, Thread
 
 def run_cli():
     """Run the backup process in command line mode"""
@@ -31,7 +31,7 @@ def run_cli():
         backup_executor.run_backup(source_token, dest_token, backup_dir, None, True, None)
 
     except Exception as e:
-        error_logger.error(f"Error during backup: {str(e)}")
+        error_logger.log_error(e, "Error during backup")
         logger.error(f"Error during backup: {str(e)}")
         sys.exit(1)
 
@@ -46,8 +46,9 @@ def run_gui():
     error_logger = setup_error_logger()
     progress_manager = ProgressManager()
     
-    gui = BackupGUIComponents(root)
+    gui = BackupGUIComponents(root, logger, error_logger)
     pause_event = Event()
+    cancel_event = Event()
 
     def start_backup():
         try:
@@ -56,14 +57,14 @@ def run_gui():
             backup_dir = gui.backup_dir_entry.get().strip()
 
             if not source_token or not dest_token or not backup_dir:
-                gui.status_area.insert(tk.END, "Error: All fields are required\n")
+                gui.add_status_message("Erro: Todos os campos são obrigatórios", "error")
                 return
 
             if not validate_token(source_token):
-                gui.status_area.insert(tk.END, "Error: Invalid source GitHub token\n")
+                gui.add_status_message("Erro: Token de origem inválido", "error")
                 return
             if not validate_token(dest_token):
-                gui.status_area.insert(tk.END, "Error: Invalid destination GitHub token\n")
+                gui.add_status_message("Erro: Token de destino inválido", "error")
                 return
 
             # Save configuration if checkbox is checked
@@ -73,39 +74,73 @@ def run_gui():
                     f.write(f"DEST_GITHUB_TOKEN={dest_token}\n")
                     f.write(f"BACKUP_DIR={backup_dir}\n")
 
+            # Disable start button and enable pause/cancel buttons
             gui.start_button.config(state=tk.DISABLED)
             gui.pause_button.config(state=tk.NORMAL)
+            gui.cancel_button.config(state=tk.NORMAL)
 
-            backup_executor = BackupExecutor(logger, error_logger, progress_manager)
-            backup_executor.run_backup(
-                source_token, 
-                dest_token, 
-                backup_dir, 
-                gui.progress_var,
-                True,
-                pause_event
-            )
+            # Clear previous status
+            gui.clear_status()
+            gui.add_status_message("Iniciando processo de backup...", "info")
 
-            gui.status_area.insert(tk.END, "Backup completed successfully!\n")
-            gui.start_button.config(state=tk.NORMAL)
-            gui.pause_button.config(state=tk.DISABLED)
+            def backup_thread():
+                try:
+                    backup_executor = BackupExecutor(logger, error_logger, progress_manager)
+                    backup_executor.run_backup(
+                        source_token,
+                        dest_token,
+                        backup_dir,
+                        gui.progress_var,
+                        True,
+                        pause_event,
+                        cancel_event
+                    )
+
+                    # Update GUI from main thread
+                    root.after(0, lambda: gui.add_status_message("Backup concluído com sucesso!", "success"))
+                    root.after(0, lambda: gui.show_success("Sucesso", "Backup concluído com sucesso!"))
+                    root.after(0, lambda: complete_backup())
+
+                except Exception as e:
+                    error_msg = f"Erro durante o backup: {str(e)}"
+                    error_logger.log_error(e, error_msg)
+                    # Update GUI from main thread
+                    root.after(0, lambda: gui.add_status_message(error_msg, "error"))
+                    root.after(0, lambda: gui.show_error("Erro", error_msg))
+                    root.after(0, lambda: complete_backup())
+
+            def complete_backup():
+                gui.start_button.config(state=tk.NORMAL)
+                gui.pause_button.config(state=tk.DISABLED)
+                gui.cancel_button.config(state=tk.DISABLED)
+                pause_event.clear()  # Reset pause state
+
+            # Start backup in separate thread
+            backup_thread = Thread(target=backup_thread, daemon=True)
+            backup_thread.start()
 
         except Exception as e:
-            error_msg = f"Error during backup: {str(e)}\n"
-            gui.status_area.insert(tk.END, error_msg)
+            error_msg = f"Erro ao iniciar backup: {str(e)}"
+            gui.add_status_message(error_msg, "error")
             error_logger.error(error_msg)
             gui.start_button.config(state=tk.NORMAL)
             gui.pause_button.config(state=tk.DISABLED)
+            gui.cancel_button.config(state=tk.DISABLED)
+
+    def cancel_backup():
+        cancel_event.set()
+        gui.add_status_message("Cancelando backup...", "warning")
+        gui.cancel_button.config(state=tk.DISABLED)
 
     def toggle_pause():
         if pause_event.is_set():
             pause_event.clear()
-            gui.pause_button.config(text="Pause")
-            gui.status_area.insert(tk.END, "Resuming backup...\n")
+            gui.pause_button.config(text="Pausar")
+            gui.add_status_message("Retomando backup...", "info")
         else:
             pause_event.set()
-            gui.pause_button.config(text="Resume")
-            gui.status_area.insert(tk.END, "Pausing backup...\n")
+            gui.pause_button.config(text="Retomar")
+            gui.add_status_message("Pausando backup...", "warning")
 
     # Load values from .env if they exist
     gui.source_token_entry.insert(0, os.getenv('SOURCE_GITHUB_TOKEN', ''))

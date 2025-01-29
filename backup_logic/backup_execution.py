@@ -18,23 +18,26 @@ class BackupExecutor:
         self.repo_ops = RepositoryOperations(logger, error_logger)
         self.github_ops = GithubOperations(logger, error_logger)
 
-    def run_backup(self, source_token, dest_token, backup_dir, progress_var, is_running, pause_event):
+    def run_backup(self, source_token, dest_token, backup_dir, progress_var, is_running, pause_event, cancel_event):
         """Execute the backup process for all repositories."""
         self.is_running = is_running
         self.pause_event = pause_event
+        self.cancel_event = cancel_event
         try:
             self._setup_tokens(source_token, dest_token)
             self._validate_tokens()
             
             backup_path = self._setup_backup_directory(backup_dir)
             self.github_ops.initialize_clients(self._source_token, self._dest_token)
-            
+
+            ignored_repos = self._load_ignored_repos()
             repos = self.github_ops.get_source_repos()
-            total_repos = len(repos)
-            self.logger.info(f"Iniciando backup/mirror de {total_repos} repositórios")
+            repos_to_backup = [repo for repo in repos if repo.name not in ignored_repos]
+            total_repos = len(repos_to_backup)
+            self.logger.info(f"Iniciando backup/mirror de {total_repos} repositórios (ignorando {len(ignored_repos)} repositórios)")
 
             skipped_repos = []
-            for i, repo in enumerate(repos, 1):
+            for i, repo in enumerate(repos_to_backup, 1):
                 if self._should_stop_processing():
                     break
 
@@ -66,7 +69,22 @@ class BackupExecutor:
 
         except Exception as e:
             self.error_logger.log_error(e, "Erro durante o processo de mirror")
+        except Exception as e:
+            self.error_logger.log_error(e, "Erro durante o processo de mirror")
             raise e
+
+    def _load_ignored_repos(self):
+        """Load ignored repositories from ignored_repos.txt."""
+        ignored_repos = []
+        try:
+            with open("ignored_repos.txt", "r") as f:
+                for line in f:
+                    repo_name = line.strip()
+                    if repo_name:
+                        ignored_repos.append(repo_name)
+        except FileNotFoundError:
+            pass  # It's okay if the file doesn't exist yet
+        return ignored_repos
 
     def _setup_tokens(self, source_token, dest_token):
         """Setup source and destination tokens."""
