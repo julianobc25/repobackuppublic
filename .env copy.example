@@ -1,8 +1,0 @@
-# Tokens do GitHub
-SOURCE_GITHUB_TOKEN=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
-DEST_GITHUB_TOKEN=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
-
-# Diretório de backup (opcional)
-# BACKUP_DIR=/caminho/personalizado/para/backup
-SOURCE_GITHUB_TOKEN=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
-DEST_GITHUB_TOKEN=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

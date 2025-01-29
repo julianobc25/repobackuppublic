@@ -16,3 +16,4 @@ github_backups/
 .idea/
 *.swp
 .DS_Store
+.env*.example
