@@ -1,179 +1,181 @@
-# GitHub Repository Backup Tool
+# Ferramenta de Backup de Repositórios GitHub
 
-This tool allows you to create backups of your GitHub repositories by mirroring them to another GitHub account. It supports both public and private repositories, preserves all branches and tags, and maintains repository settings.
+Esta ferramenta permite criar backups dos seus repositórios GitHub espelhando-os em outra conta GitHub. Suporta repositórios públicos e privados, preserva todos os branches e tags, e mantém as configurações dos repositórios.
 
-## Features
+[English Version](README_EN.md)
 
-- Mirror repositories from one GitHub account to another
-- Preserve all branches, tags, and commit history
-- Maintain repository settings (private/public status, description, etc.)
-- Resume interrupted backups
-- Track backup progress
-- Handle large repositories with retry mechanisms
-- Detailed logging of operations
-- Graphical User Interface (GUI) and Command Line Interface (CLI) support
-- Pause/Resume functionality (GUI mode)
+## Funcionalidades
 
-## Prerequisites
+- Espelhamento de repositórios de uma conta GitHub para outra
+- Preservação de todos os branches, tags e histórico de commits
+- Manutenção das configurações dos repositórios (status privado/público, descrição, etc.)
+- Retomada de backups interrompidos
+- Acompanhamento do progresso
+- Tratamento de repositórios grandes com mecanismo de tentativas
+- Registro detalhado de operações
+- Interface Gráfica (GUI) e Interface de Linha de Comando (CLI)
+- Funcionalidade de Pausar/Retomar (modo GUI)
 
-1. Python 3.8 or higher
-2. Git installed on your system
-3. Two GitHub accounts:
-   - Source account (where your repositories are)
-   - Destination account (where backups will be stored)
-4. Personal access tokens for both accounts
+## Pré-requisitos
 
-## Installation
+1. Python 3.8 ou superior
+2. Git instalado no sistema
+3. Duas contas GitHub:
+   - Conta de origem (onde estão seus repositórios)
+   - Conta de destino (onde serão armazenados os backups)
+4. Tokens de acesso pessoal para ambas as contas
 
-1. Clone this repository:
+## Instalação
+
+1. Clone este repositório:
 ```bash
 git clone https://github.com/yourusername/github-backup-tool.git
 cd github-backup-tool
 ```
 
-2. Install required dependencies:
+2. Instale as dependências necessárias:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Configuration
+## Configuração
 
-1. Create a `.env` file in the root directory with the following content:
+1. Crie um arquivo `.env` no diretório raiz com o seguinte conteúdo:
 ```env
-# GitHub Tokens
-SOURCE_GITHUB_TOKEN=your_source_account_token
-DEST_GITHUB_TOKEN=your_destination_account_token
-BACKUP_DIR=C:\path\to\your\backup\directory
+# Tokens do GitHub
+SOURCE_GITHUB_TOKEN=seu_token_conta_origem
+DEST_GITHUB_TOKEN=seu_token_conta_destino
+BACKUP_DIR=C:\caminho\para\seu\diretorio\backup
 ```
 
-2. Generate GitHub Personal Access Tokens:
-   - Go to GitHub Settings > Developer settings > Personal access tokens
-   - Generate tokens for both source and destination accounts
-   - Required permissions:
-     * `repo` (Full control of private repositories)
-     * `workflow` (Update GitHub Action workflows)
-     * `read:org` (Read organization data)
+2. Gere Tokens de Acesso Pessoal do GitHub:
+   - Vá para Configurações do GitHub > Configurações do desenvolvedor > Tokens de acesso pessoal
+   - Gere tokens para ambas as contas
+   - Permissões necessárias:
+     * `repo` (Controle total de repositórios privados)
+     * `workflow` (Atualização de workflows do GitHub Action)
+     * `read:org` (Leitura de dados da organização)
 
-## Usage
+## Uso
 
-### GUI Mode (Default)
+### Modo GUI (Padrão)
 
-1. Run the application:
+1. Execute a aplicação:
 ```bash
 python github_backup.py
 ```
 
-2. The GUI will open with the following features:
-   - Input fields for source and destination tokens
-   - Backup directory selection
-   - Option to save configuration to .env file
-   - Start/Pause buttons
-   - Progress bar
-   - Status log window
+2. A interface gráfica abrirá com os seguintes recursos:
+   - Campos para tokens de origem e destino
+   - Seleção do diretório de backup
+   - Opção para salvar configuração no arquivo .env
+   - Botões Iniciar/Pausar
+   - Barra de progresso
+   - Janela de registro de status
 
-### CLI Mode
+### Modo CLI
 
-1. Run in command-line mode:
+1. Execute no modo linha de comando:
 ```bash
 python github_backup.py --cli
 ```
 
-2. The tool will:
-   - Read configuration from .env file
-   - Validate your tokens
-   - Create the backup directory if it doesn't exist
-   - List all repositories in the source account
-   - Mirror each repository to the destination account
-   - Show progress as it works
-   - Provide a summary of completed and skipped repositories
+2. A ferramenta irá:
+   - Ler configuração do arquivo .env
+   - Validar seus tokens
+   - Criar o diretório de backup se não existir
+   - Listar todos os repositórios na conta de origem
+   - Espelhar cada repositório para a conta de destino
+   - Mostrar o progresso conforme trabalha
+   - Fornecer um resumo dos repositórios completos e pulados
 
-## Output Directory Structure
+## Estrutura do Diretório de Saída
 
 ```
-backup_directory/
-├── repo1/              # Bare Git repository
-├── repo2/              # Bare Git repository
+diretorio_backup/
+├── repo1/              # Repositório Git bare
+├── repo2/              # Repositório Git bare
 └── ...
 ```
 
-## Logs and Progress
+## Logs e Progresso
 
-- Operation logs are stored in `github_backup.log`
-- Error logs are stored in `error_log.log`
-- Backup progress is tracked in `backup_progress.json`
+- Logs de operação são armazenados em `github_backup.log`
+- Logs de erro são armazenados em `error_log.log`
+- Progresso do backup é rastreado em `backup_progress.json`
 
-## Error Handling
+## Tratamento de Erros
 
-The tool handles various scenarios:
-- Network interruptions (with automatic retries)
-- Repository access issues
-- Invalid tokens
-- Rate limiting
-- Repository not found errors
+A ferramenta lida com vários cenários:
+- Interrupções de rede (com tentativas automáticas)
+- Problemas de acesso ao repositório
+- Tokens inválidos
+- Limitação de taxa
+- Erros de repositório não encontrado
 
-If a repository fails to backup after 3 retries, it will be skipped and listed in the final summary.
+Se um repositório falhar no backup após 3 tentativas, será pulado e listado no resumo final.
 
-## Running Tests
+## Executando Testes
 
-The project includes both unit tests and integration tests:
+O projeto inclui testes unitários e de integração:
 
 ```bash
-# Run all tests
+# Executar todos os testes
 python -m backup_logic.tests.run_tests
 
-# Run specific test file
+# Executar arquivo de teste específico
 python -m unittest backup_logic/tests/test_github_operations.py
 ```
 
-## Troubleshooting
+## Resolução de Problemas
 
-1. "Token validation failed":
-   - Check if your tokens have the required permissions
-   - Verify tokens are correctly set in .env file
+1. "Falha na validação do token":
+   - Verifique se seus tokens têm as permissões necessárias
+   - Verifique se os tokens estão corretamente definidos no arquivo .env
 
-2. "Repository not found":
-   - Verify the repository exists in source account
-   - Check if your token has access to the repository
+2. "Repositório não encontrado":
+   - Verifique se o repositório existe na conta de origem
+   - Verifique se seu token tem acesso ao repositório
 
-3. "Rate limit exceeded":
-   - Wait for a few minutes and try again
-   - GitHub API has rate limits that reset hourly
+3. "Limite de taxa excedido":
+   - Aguarde alguns minutos e tente novamente
+   - A API do GitHub tem limites de taxa que são redefinidos a cada hora
 
-4. "Push rejected":
-   - Check if destination account has enough private repository slots
-   - Verify destination token has repository creation permissions
+4. "Push rejeitado":
+   - Verifique se a conta de destino tem slots suficientes para repositórios privados
+   - Verifique se o token de destino tem permissões para criar repositórios
 
-## GUI Features
+## Recursos da Interface Gráfica
 
-1. Token Management:
-   - Input fields for both source and destination tokens
-   - Option to save tokens to .env file for future use
+1. Gerenciamento de Tokens:
+   - Campos de entrada para tokens de origem e destino
+   - Opção para salvar tokens no arquivo .env para uso futuro
 
-2. Backup Control:
-   - Start/Stop backup process
-   - Pause/Resume ongoing backups
-   - Real-time progress bar
+2. Controle de Backup:
+   - Iniciar/Parar processo de backup
+   - Pausar/Retomar backups em andamento
+   - Barra de progresso em tempo real
 
-3. Status Monitoring:
-   - Scrollable status window showing current operations
-   - Error messages and warnings
-   - Success confirmations
+3. Monitoramento de Status:
+   - Janela de status rolável mostrando operações atuais
+   - Mensagens de erro e avisos
+   - Confirmações de sucesso
 
-## Security Notes
+## Notas de Segurança
 
-- Keep your .env file secure and never commit it to version control
-- Tokens should be treated as sensitive credentials
-- Use tokens with minimum required permissions
-- Regularly rotate your tokens for better security
+- Mantenha seu arquivo .env seguro e nunca o envie para o controle de versão
+- Tokens devem ser tratados como credenciais sensíveis
+- Use tokens com as permissões mínimas necessárias
+- Faça rotação regular dos seus tokens para melhor segurança
 
-## Contributing
+## Contribuindo
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. Faça um fork do repositório
+2. Crie sua branch de feature (`git checkout -b feature/recurso-incrivel`)
+3. Faça commit de suas mudanças (`git commit -m 'Adiciona recurso incrível'`)
+4. Faça push para a branch (`git push origin feature/recurso-incrivel`)
+5. Abra um Pull Request
 
-## License
+## Licença
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+Este projeto está licenciado sob a Licença MIT - veja o arquivo LICENSE para detalhes.
