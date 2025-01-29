@@ -1,0 +1,18 @@
+# Ambiente e configurações
+.env
+venv/
+__pycache__/
+*.pyc
+
+# Arquivos de log e progresso
+*.log
+backup_progress.json
+
+# Diretório de backup padrão
+github_backups/
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+.DS_Store

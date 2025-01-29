@@ -1,0 +1,6 @@
+# Tokens do GitHub
+SOURCE_GITHUB_TOKEN=ghp_DZli1231231231231z0af22Wf39B
+DEST_GITHUB_TOKEN=ghp_123123123123
+
+# Diretório de backup (opcional)
+# BACKUP_DIR=/caminho/personalizado/para/backup
