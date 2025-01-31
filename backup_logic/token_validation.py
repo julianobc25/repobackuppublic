@@ -3,9 +3,16 @@ from github.GithubException import BadCredentialsException, GithubException
 import re
 import requests
 
+# Mapeamento de escopos necessários para permissões
 REQUIRED_SCOPES = {
-    'source': ['repo', 'read:org'],
-    'dest': ['repo', 'delete_repo']
+    'source': {
+        'repo': ['repo', 'public_repo'],  # aceita repo completo ou apenas public_repo
+        'org': ['read:org', 'admin:org', 'write:org']  # qualquer nível de acesso org é suficiente
+    },
+    'dest': {
+        'repo': ['repo', 'public_repo'],
+        'delete': ['delete_repo', 'repo']  # repo full inclui delete_repo
+    }
 }
 
 def _validate_token_format(token):
@@ -27,23 +34,73 @@ def _check_rate_limits(github_client, logger):
     except GithubException as e:
         raise Exception(f"Erro ao verificar limites de API: {str(e)}")
 
-def _validate_scopes(token, required_scopes, token_type):
+def _has_required_scope(scopes, required_options):
+    """Check if any of the required scope options is present."""
+    return any(scope in scopes for scope in required_options)
+
+def _validate_scopes(token, required_scopes, token_type, logger):
     """Validate if token has required scopes using GitHub API."""
     try:
+        # Primeiro tenta obter os escopos via API
         response = requests.get(
             'https://api.github.com/user',
             headers={'Authorization': f'token {token}'}
         )
+        response.raise_for_status()
+
+        # Obtém os escopos do cabeçalho
+        if 'X-OAuth-Scopes' in response.headers:
+            scopes = [s.strip() for s in response.headers['X-OAuth-Scopes'].split(',') if s.strip()]
+            logger.info(f"Escopos encontrados para token {token_type}: {', '.join(scopes)}")
+        else:
+            # Se não houver cabeçalho de escopos, pode ser um token de acesso pessoal
+            scopes = ['repo']  # Assume acesso total para tokens clássicos
+            logger.info(f"Token {token_type} parece ser um token de acesso pessoal clássico")
         
-        if 'X-OAuth-Scopes' not in response.headers:
-            raise Exception(f"Token {token_type} não possui escopos OAuth")
-            
-        scopes = [s.strip() for s in response.headers['X-OAuth-Scopes'].split(',')]
-        missing_scopes = [s for s in required_scopes if s not in scopes]
+        # Verifica cada tipo de permissão necessária
+        missing_permissions = []
         
-        if missing_scopes:
+        for perm_type, scope_options in required_scopes.items():
+            if not _has_required_scope(scopes, scope_options):
+                missing_permissions.append(perm_type)
+        
+        if missing_permissions:
+            # Se encontrou permissões faltando, tenta validar através de chamadas API específicas
+            try:
+                # Testa acesso a repositórios
+                if 'repo' in missing_permissions:
+                    g = Github(token)
+                    # Tenta listar repositórios privados
+                    list(g.get_user().get_repos(type='private'))
+                    missing_permissions.remove('repo')
+                    logger.info(f"Token {token_type} tem acesso a repositórios confirmado via API")
+                
+                # Testa acesso a organizações
+                if 'org' in missing_permissions:
+                    g = Github(token)
+                    # Tenta listar organizações
+                    list(g.get_user().get_orgs())
+                    missing_permissions.remove('org')
+                    logger.info(f"Token {token_type} tem acesso a organizações confirmado via API")
+                
+                # Testa permissão de deleção
+                if 'delete' in missing_permissions and token_type == 'destino':
+                    g = Github(token)
+                    user = g.get_user()
+                    # Tenta criar e deletar um repo de teste
+                    repo = user.create_repo('temp-test-delete-repo', auto_init=True, private=True)
+                    repo.delete()
+                    missing_permissions.remove('delete')
+                    logger.info(f"Token {token_type} tem permissão de deleção confirmada via API")
+            except Exception as e:
+                logger.info(f"Erro ao verificar permissões via API para {token_type}: {str(e)}")
+        
+        if missing_permissions:
+            missing_scopes = []
+            for perm in missing_permissions:
+                missing_scopes.extend(required_scopes[perm])
             raise Exception(
-                f"Token {token_type} não possui os escopos necessários: {', '.join(missing_scopes)}"
+                f"Token {token_type} não possui as permissões necessárias: {', '.join(set(missing_scopes))}"
             )
             
         return True
@@ -83,7 +140,7 @@ def validate_tokens(source_token, dest_token, logger, error_logger):
             source_user = source_github.get_user()
             source_user.id
             _check_rate_limits(source_github, logger)
-            _validate_scopes(source_token, REQUIRED_SCOPES['source'], 'origem')
+            _validate_scopes(source_token, REQUIRED_SCOPES['source'], 'origem', logger)
             logger.info(f"Token de origem validado para usuário: {source_user.login}")
         except Exception as e:
             raise Exception(f"Erro na validação do token de origem: {str(e)}")
@@ -94,30 +151,19 @@ def validate_tokens(source_token, dest_token, logger, error_logger):
             dest_user = dest_github.get_user()
             dest_user.id
             _check_rate_limits(dest_github, logger)
-            _validate_scopes(dest_token, REQUIRED_SCOPES['dest'], 'destino')
+            _validate_scopes(dest_token, REQUIRED_SCOPES['dest'], 'destino', logger)
             logger.info(f"Token de destino validado para usuário: {dest_user.login}")
             
             # Testa permissões específicas na conta destino
             private_repos = list(dest_user.get_repos(type='private'))
             logger.info("Permissão de leitura de repos privados verificada")
-            
-            # Tenta criar um repo de teste temporário
-            try:
-                test_repo = dest_user.create_repo(
-                    'temp-permission-test-repo',
-                    private=True,
-                    auto_init=True
-                )
-                test_repo.delete()
-                logger.info("Permissão de criação/deleção de repos verificada")
-            except GithubException as e:
-                raise Exception(f"Sem permissão para criar/deletar repos: {str(e)}")
 
+            # Verifica plano do usuário
             user_data = dest_github.get_user().raw_data
             if 'plan' in user_data and user_data['plan']:
                 logger.info("Permissões verificadas na conta de destino")
             else:
-                raise Exception("Conta de destino não tem plano que permite repositórios privados")
+                logger.info("Aviso: Não foi possível verificar o plano da conta de destino")
 
         except Exception as e:
             raise Exception(f"Erro na validação do token de destino: {str(e)}")

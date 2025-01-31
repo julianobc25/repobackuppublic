@@ -18,7 +18,7 @@ class BackupExecutor:
         self.repo_ops = RepositoryOperations(logger, error_logger)
         self.github_ops = GithubOperations(logger, error_logger)
 
-    def run_backup(self, source_token, dest_token, backup_dir, progress_var, is_running, pause_event, cancel_event):
+    def run_backup(self, source_token, dest_token, backup_dir, progress_var, is_running, pause_event, cancel_event, retry_count):
         """Execute the backup process for all repositories."""
         self.is_running = is_running
         self.pause_event = pause_event
@@ -45,7 +45,7 @@ class BackupExecutor:
                     continue
 
                 try:
-                    self._process_repository(repo, backup_path, i, total_repos, progress_var)
+                    self._process_repository(repo, backup_path, i, total_repos, progress_var, retry_count)
                 except GithubException as e:
                     if e.status == 404:
                         self.logger.error(f"Repositório não encontrado, pulando: {repo.name}")
@@ -118,10 +118,9 @@ class BackupExecutor:
             return True
         return False
 
-    def _process_repository(self, repo, backup_path, current_index, total_repos, progress_var):
+    def _process_repository(self, repo, backup_path, current_index, total_repos, progress_var, max_retries=3):
         """Process a single repository."""
         retry_count = 0
-        max_retries = 3
         
         self.logger.info(f"\nProcessando repositório {current_index}/{total_repos}: {repo.name}")
         

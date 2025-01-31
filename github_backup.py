@@ -28,7 +28,16 @@ def run_cli():
             raise ValueError("Invalid destination GitHub token")
 
         backup_executor = BackupExecutor(logger, error_logger, progress_manager)
-        backup_executor.run_backup(source_token, dest_token, backup_dir, None, True, None)
+        backup_executor.run_backup(
+            source_token=source_token,
+            dest_token=dest_token,
+            backup_dir=backup_dir,
+            progress_var=None,
+            is_running=True,
+            pause_event=None,
+            cancel_event=None,
+            retry_count=3  # Default to 3 retries
+        )
 
     except Exception as e:
         error_logger.log_error(e, "Error during backup")
@@ -87,13 +96,14 @@ def run_gui():
                 try:
                     backup_executor = BackupExecutor(logger, error_logger, progress_manager)
                     backup_executor.run_backup(
-                        source_token,
-                        dest_token,
-                        backup_dir,
-                        gui.progress_var,
-                        True,
-                        pause_event,
-                        cancel_event
+                        source_token=source_token,
+                        dest_token=dest_token,
+                        backup_dir=backup_dir,
+                        progress_var=gui.progress_var,
+                        is_running=True,
+                        pause_event=pause_event,
+                        cancel_event=cancel_event,
+                        retry_count=int(gui.retry_count.get())
                     )
 
                     # Update GUI from main thread
@@ -122,7 +132,7 @@ def run_gui():
         except Exception as e:
             error_msg = f"Erro ao iniciar backup: {str(e)}"
             gui.add_status_message(error_msg, "error")
-            error_logger.error(error_msg)
+            error_logger.log_error(e, error_msg)
             gui.start_button.config(state=tk.NORMAL)
             gui.pause_button.config(state=tk.DISABLED)
             gui.cancel_button.config(state=tk.DISABLED)
@@ -149,6 +159,7 @@ def run_gui():
 
     gui.start_button.config(command=start_backup)
     gui.pause_button.config(command=toggle_pause)
+    gui.cancel_button.config(command=cancel_backup)  # Add cancel button handler
 
     root.mainloop()
 
