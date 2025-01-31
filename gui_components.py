@@ -165,7 +165,7 @@ class BackupGUIComponents:
             self.add_status_message(f"Erro: {error_msg}", "error")
             self.show_error("Erro na Validação", error_msg)
             if self.error_logger:
-                self.error_logger.error(f"Token validation error: {error_msg}")
+                self.error_logger.log_error(Exception(error_msg), "Token validation error")
 
     def browse_directory(self):
         """Open directory browser dialog"""

@@ -1,6 +1,7 @@
 from github import Github
 from github.GithubException import BadCredentialsException, GithubException
 import re
+import requests
 
 REQUIRED_SCOPES = {
     'source': ['repo', 'read:org'],
@@ -26,27 +27,28 @@ def _check_rate_limits(github_client, logger):
     except GithubException as e:
         raise Exception(f"Erro ao verificar limites de API: {str(e)}")
 
-def _validate_scopes(github_client, required_scopes, token_type):
-    """Validate if token has required scopes."""
-    headers = github_client._Github__requester._Requester__authorizationHeader
-    if not headers:
-        raise Exception(f"Token {token_type} não possui cabeçalhos de autorização")
-        
-    response = github_client._Github__requester._Requester__connection.session.get(
-        'https://api.github.com/user',
-        headers={'Authorization': headers}
-    )
-    
-    if 'X-OAuth-Scopes' not in response.headers:
-        raise Exception(f"Token {token_type} não possui escopos OAuth")
-        
-    scopes = [s.strip() for s in response.headers['X-OAuth-Scopes'].split(',')]
-    missing_scopes = [s for s in required_scopes if s not in scopes]
-    
-    if missing_scopes:
-        raise Exception(
-            f"Token {token_type} não possui os escopos necessários: {', '.join(missing_scopes)}"
+def _validate_scopes(token, required_scopes, token_type):
+    """Validate if token has required scopes using GitHub API."""
+    try:
+        response = requests.get(
+            'https://api.github.com/user',
+            headers={'Authorization': f'token {token}'}
         )
+        
+        if 'X-OAuth-Scopes' not in response.headers:
+            raise Exception(f"Token {token_type} não possui escopos OAuth")
+            
+        scopes = [s.strip() for s in response.headers['X-OAuth-Scopes'].split(',')]
+        missing_scopes = [s for s in required_scopes if s not in scopes]
+        
+        if missing_scopes:
+            raise Exception(
+                f"Token {token_type} não possui os escopos necessários: {', '.join(missing_scopes)}"
+            )
+            
+        return True
+    except requests.RequestException as e:
+        raise Exception(f"Erro ao validar escopos do token {token_type}: {str(e)}")
 
 def validate_token(token):
     """Basic token validation for UI checks."""
@@ -81,7 +83,7 @@ def validate_tokens(source_token, dest_token, logger, error_logger):
             source_user = source_github.get_user()
             source_user.id
             _check_rate_limits(source_github, logger)
-            _validate_scopes(source_github, REQUIRED_SCOPES['source'], 'origem')
+            _validate_scopes(source_token, REQUIRED_SCOPES['source'], 'origem')
             logger.info(f"Token de origem validado para usuário: {source_user.login}")
         except Exception as e:
             raise Exception(f"Erro na validação do token de origem: {str(e)}")
@@ -92,7 +94,7 @@ def validate_tokens(source_token, dest_token, logger, error_logger):
             dest_user = dest_github.get_user()
             dest_user.id
             _check_rate_limits(dest_github, logger)
-            _validate_scopes(dest_github, REQUIRED_SCOPES['dest'], 'destino')
+            _validate_scopes(dest_token, REQUIRED_SCOPES['dest'], 'destino')
             logger.info(f"Token de destino validado para usuário: {dest_user.login}")
             
             # Testa permissões específicas na conta destino
