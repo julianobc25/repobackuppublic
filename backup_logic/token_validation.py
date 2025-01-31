@@ -1,54 +1,127 @@
 from github import Github
 from github.GithubException import BadCredentialsException, GithubException
+import re
+
+REQUIRED_SCOPES = {
+    'source': ['repo', 'read:org'],
+    'dest': ['repo', 'delete_repo']
+}
+
+def _validate_token_format(token):
+    """Validate token format matches GitHub's pattern."""
+    if not token or not isinstance(token, str):
+        return False
+    # GitHub tokens are 40 hex chars for classic or start with ghp_ for fine-grained
+    return bool(re.match(r'^(ghp_[a-zA-Z0-9]{36}|[a-f0-9]{40})$', token))
+
+def _check_rate_limits(github_client, logger):
+    """Check if the token has sufficient API rate limits."""
+    try:
+        rate_limit = github_client.get_rate_limit()
+        core_remaining = rate_limit.core.remaining
+        logger.info(f"Rate limit remaining: {core_remaining}")
+        if core_remaining < 100:  # Ensure enough calls available
+            raise Exception(f"Taxa limite da API muito baixa: {core_remaining} chamadas restantes")
+        return True
+    except GithubException as e:
+        raise Exception(f"Erro ao verificar limites de API: {str(e)}")
+
+def _validate_scopes(github_client, required_scopes, token_type):
+    """Validate if token has required scopes."""
+    headers = github_client._Github__requester._Requester__authorizationHeader
+    if not headers:
+        raise Exception(f"Token {token_type} não possui cabeçalhos de autorização")
+        
+    response = github_client._Github__requester._Requester__connection.session.get(
+        'https://api.github.com/user',
+        headers={'Authorization': headers}
+    )
+    
+    if 'X-OAuth-Scopes' not in response.headers:
+        raise Exception(f"Token {token_type} não possui escopos OAuth")
+        
+    scopes = [s.strip() for s in response.headers['X-OAuth-Scopes'].split(',')]
+    missing_scopes = [s for s in required_scopes if s not in scopes]
+    
+    if missing_scopes:
+        raise Exception(
+            f"Token {token_type} não possui os escopos necessários: {', '.join(missing_scopes)}"
+        )
 
 def validate_token(token):
+    """Basic token validation for UI checks."""
     try:
+        if not _validate_token_format(token):
+            return False
+            
         g = Github(token)
         g.get_user().login
         return True
     except BadCredentialsException:
+        return False
+    except Exception:
         return False
 
 def validate_tokens(source_token, dest_token, logger, error_logger):
     """Valida os tokens e permissões das contas GitHub
 
     Verifica se os tokens de origem e destino são válidos e se a conta
-    de destino tem permissões de leitura e escrita em repositórios privados
+    de destino tem todas as permissões necessárias
     """
     try:
+        # Valida formato dos tokens
+        if not _validate_token_format(source_token):
+            raise Exception("Token de origem em formato inválido")
+        if not _validate_token_format(dest_token):
+            raise Exception("Token de destino em formato inválido")
+
         # Valida token de origem
         source_github = Github(source_token.strip())
-        source_user = source_github.get_user()
-        source_user.id  # Testa se o token é válido
+        try:
+            source_user = source_github.get_user()
+            source_user.id
+            _check_rate_limits(source_github, logger)
+            _validate_scopes(source_github, REQUIRED_SCOPES['source'], 'origem')
+            logger.info(f"Token de origem validado para usuário: {source_user.login}")
+        except Exception as e:
+            raise Exception(f"Erro na validação do token de origem: {str(e)}")
 
         # Valida token de destino
         dest_github = Github(dest_token.strip())
-        dest_user = dest_github.get_user()
-        dest_user.id  # Testa se o token é válido
-
-        # Testa permissões básicas na conta destino
         try:
-            # Verifica se pode listar repositórios privados
+            dest_user = dest_github.get_user()
+            dest_user.id
+            _check_rate_limits(dest_github, logger)
+            _validate_scopes(dest_github, REQUIRED_SCOPES['dest'], 'destino')
+            logger.info(f"Token de destino validado para usuário: {dest_user.login}")
+            
+            # Testa permissões específicas na conta destino
             private_repos = list(dest_user.get_repos(type='private'))
+            logger.info("Permissão de leitura de repos privados verificada")
+            
+            # Tenta criar um repo de teste temporário
+            try:
+                test_repo = dest_user.create_repo(
+                    'temp-permission-test-repo',
+                    private=True,
+                    auto_init=True
+                )
+                test_repo.delete()
+                logger.info("Permissão de criação/deleção de repos verificada")
+            except GithubException as e:
+                raise Exception(f"Sem permissão para criar/deletar repos: {str(e)}")
 
-            # Verifica permissões de criação testando uma API endpoint
             user_data = dest_github.get_user().raw_data
             if 'plan' in user_data and user_data['plan']:
                 logger.info("Permissões verificadas na conta de destino")
             else:
                 raise Exception("Conta de destino não tem plano que permite repositórios privados")
 
-            return True
-
-        except GithubException as e:
-            raise Exception(f"Token de destino não tem permissões suficientes: {str(e)}")
-
-        except BadCredentialsException as e:
-            error_logger.log_error(e, "Credenciais inválidas")
-            return False
         except Exception as e:
-            error_logger.log_error(e, "Erro na validação dos tokens")
-            return False
+            raise Exception(f"Erro na validação do token de destino: {str(e)}")
+
+        return True
+
     except Exception as e:
         error_logger.log_error(e, "Erro na validação dos tokens")
-        return False
+        raise

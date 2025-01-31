@@ -105,8 +105,17 @@ class RepositoryOperations:
         try:
             def onerror(func, path, exc_info):
                 self.error_logger.log_error(exc_info[1], f"Erro ao remover arquivo: {path}")
-            os.system(f'rmdir /s /q "{repo_path}"')
-            shutil.rmtree(repo_path, onerror=onerror, ignore_errors=True)
+            try:
+                subprocess.run(
+                    ['rm', '-rf', str(repo_path)] if os.name != 'nt' else ['cmd', '/c', 'rmdir', '/s', '/q', str(repo_path)],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                    timeout=300  # 5 minute timeout for large directories
+                )
+            except subprocess.TimeoutExpired:
+                self.error_logger.log_error(TimeoutError(), f"Timeout ao tentar remover {repo_path}")
+                raise TimeoutError(f"Timeout ao tentar remover {repo_path}")
         except PermissionError as e:
             error_msg = f"Erro de permissão ao remover diretório: {e}"
             self.error_logger.log_error(e, f"Erro de permissão ao remover {repo_path}: {error_msg}")
