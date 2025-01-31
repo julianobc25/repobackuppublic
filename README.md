@@ -1,4 +1,4 @@
-# Ferramenta de Backup de Repositórios GitHub
+# Ferramenta de Backup e Mirror de Repositórios GitHub
 
 Esta ferramenta permite criar backups dos seus repositórios GitHub espelhando-os em outra conta GitHub. Suporta repositórios públicos e privados, preserva todos os branches e tags, e mantém as configurações dos repositórios.
 
@@ -6,15 +6,16 @@ Esta ferramenta permite criar backups dos seus repositórios GitHub espelhando-o
 
 ## Funcionalidades
 
-- Espelhamento de repositórios de uma conta GitHub para outra
+- Espelhamento completo de repositórios entre contas GitHub
 - Preservação de todos os branches, tags e histórico de commits
 - Manutenção das configurações dos repositórios (status privado/público, descrição, etc.)
 - Retomada de backups interrompidos
-- Acompanhamento do progresso
-- Tratamento de repositórios grandes com mecanismo de tentativas
-- Registro detalhado de operações
 - Interface Gráfica (GUI) e Interface de Linha de Comando (CLI)
-- Funcionalidade de Pausar/Retomar (modo GUI)
+- Sistema de pausa/retomada com persistência de estado
+- Verificação de espaço em disco dinâmica
+- Mecanismo configurável de tentativas
+- Validação abrangente de tokens e permissões
+- Utilitário de teste de tokens
 
 ## Pré-requisitos
 
@@ -40,7 +41,7 @@ pip install -r requirements.txt
 
 ## Configuração
 
-1. Crie um arquivo `.env` no diretório raiz com o seguinte conteúdo:
+1. Crie um arquivo `.env` no diretório raiz (use `.env.example` como modelo):
 ```env
 # Tokens do GitHub
 SOURCE_GITHUB_TOKEN=seu_token_conta_origem
@@ -52,9 +53,18 @@ BACKUP_DIR=C:\caminho\para\seu\diretorio\backup
    - Vá para Configurações do GitHub > Configurações do desenvolvedor > Tokens de acesso pessoal
    - Gere tokens para ambas as contas
    - Permissões necessárias:
-     * `repo` (Controle total de repositórios privados)
-     * `workflow` (Atualização de workflows do GitHub Action)
-     * `read:org` (Leitura de dados da organização)
+     * Conta de origem:
+       - `repo` (acesso a repositórios)
+       - `read:org` (leitura de organizações)
+     * Conta de destino:
+       - `repo` (acesso a repositórios)
+       - `delete_repo` (gerenciamento de repositórios)
+
+3. Teste seus tokens usando o utilitário de teste:
+```bash
+cd scripts
+python test_token.py seu_token
+```
 
 ## Uso
 
@@ -65,13 +75,13 @@ BACKUP_DIR=C:\caminho\para\seu\diretorio\backup
 python github_backup.py
 ```
 
-2. A interface gráfica abrirá com os seguintes recursos:
-   - Campos para tokens de origem e destino
-   - Seleção do diretório de backup
-   - Opção para salvar configuração no arquivo .env
-   - Botões Iniciar/Pausar
-   - Barra de progresso
-   - Janela de registro de status
+2. A interface gráfica oferece:
+   - Validação de tokens com feedback detalhado
+   - Configuração do número de tentativas
+   - Sistema de pausa/retomada
+   - Monitoramento em tempo real
+   - Backup incremental
+   - Opções de configuração
 
 ### Modo CLI
 
@@ -80,100 +90,73 @@ python github_backup.py
 python github_backup.py --cli
 ```
 
-2. A ferramenta irá:
-   - Ler configuração do arquivo .env
-   - Validar seus tokens
-   - Criar o diretório de backup se não existir
-   - Listar todos os repositórios na conta de origem
-   - Espelhar cada repositório para a conta de destino
-   - Mostrar o progresso conforme trabalha
-   - Fornecer um resumo dos repositórios completos e pulados
-
-## Estrutura do Diretório de Saída
+## Estrutura do Projeto
 
 ```
-diretorio_backup/
-├── repo1/              # Repositório Git bare
-├── repo2/              # Repositório Git bare
-└── ...
+projeto/
+├── backup_logic/           # Lógica principal
+│   ├── __init__.py
+│   ├── backup_execution.py
+│   ├── disk_space_check.py
+│   ├── github_operations.py
+│   ├── progress_management.py
+│   ├── repository_operations.py
+│   ├── token_validation.py
+│   └── tests/             # Testes unitários e de integração
+├── scripts/               # Utilitários
+│   ├── test_token.py     # Ferramenta de teste de tokens
+│   └── test_token.bat    # Wrapper para Windows
+├── old/                  # Arquivos deprecados
+└── docs/                 # Documentação
 ```
 
-## Logs e Progresso
+## Segurança
 
-- Logs de operação são armazenados em `github_backup.log`
-- Logs de erro são armazenados em `error_log.log`
-- Progresso do backup é rastreado em `backup_progress.json`
+- Tokens são validados quanto a formato e permissões
+- Verificação de escopos específicos
+- Tratamento seguro de subprocessos
+- Operações atômicas de arquivo
+- Sanitização de logs
 
 ## Tratamento de Erros
 
-A ferramenta lida com vários cenários:
-- Interrupções de rede (com tentativas automáticas)
-- Problemas de acesso ao repositório
-- Tokens inválidos
-- Limitação de taxa
-- Erros de repositório não encontrado
-
-Se um repositório falhar no backup após 3 tentativas, será pulado e listado no resumo final.
+- Verificação de espaço em disco
+- Validação abrangente de tokens
+- Número configurável de tentativas
+- Recuperação automática de falhas
+- Logs detalhados de erros
 
 ## Executando Testes
 
-O projeto inclui testes unitários e de integração:
-
 ```bash
 # Executar todos os testes
-python -m backup_logic.tests.run_tests
+python -m pytest backup_logic/tests/
 
-# Executar arquivo de teste específico
-python -m unittest backup_logic/tests/test_github_operations.py
+# Testar token específico
+python scripts/test_token.py seu_token
+
+# Verificar cobertura de testes
+python -m pytest --cov=backup_logic tests/
 ```
 
 ## Resolução de Problemas
 
-1. "Falha na validação do token":
-   - Verifique se seus tokens têm as permissões necessárias
-   - Verifique se os tokens estão corretamente definidos no arquivo .env
+1. Problemas com tokens:
+   - Use `scripts/test_token.py` para diagnóstico
+   - Verifique os escopos necessários
+   - Confirme as permissões de organização
 
-2. "Repositório não encontrado":
-   - Verifique se o repositório existe na conta de origem
-   - Verifique se seu token tem acesso ao repositório
-
-3. "Limite de taxa excedido":
-   - Aguarde alguns minutos e tente novamente
-   - A API do GitHub tem limites de taxa que são redefinidos a cada hora
-
-4. "Push rejeitado":
-   - Verifique se a conta de destino tem slots suficientes para repositórios privados
-   - Verifique se o token de destino tem permissões para criar repositórios
-
-## Recursos da Interface Gráfica
-
-1. Gerenciamento de Tokens:
-   - Campos de entrada para tokens de origem e destino
-   - Opção para salvar tokens no arquivo .env para uso futuro
-
-2. Controle de Backup:
-   - Iniciar/Parar processo de backup
-   - Pausar/Retomar backups em andamento
-   - Barra de progresso em tempo real
-
-3. Monitoramento de Status:
-   - Janela de status rolável mostrando operações atuais
-   - Mensagens de erro e avisos
-   - Confirmações de sucesso
-
-## Notas de Segurança
-
-- Mantenha seu arquivo .env seguro e nunca o envie para o controle de versão
-- Tokens devem ser tratados como credenciais sensíveis
-- Use tokens com as permissões mínimas necessárias
-- Faça rotação regular dos seus tokens para melhor segurança
+2. Erros de backup:
+   - Verifique os logs em `error_log.log`
+   - Ajuste o número de tentativas
+   - Verifique o espaço em disco
 
 ## Contribuindo
 
 1. Faça um fork do repositório
-2. Crie sua branch de feature (`git checkout -b feature/recurso-incrivel`)
-3. Faça commit de suas mudanças (`git commit -m 'Adiciona recurso incrível'`)
-4. Faça push para a branch (`git push origin feature/recurso-incrivel`)
+2. Crie sua branch de feature (`git checkout -b feature/nome-do-recurso`)
+3. Execute os testes (`python -m pytest`)
+4. Faça commit das mudanças
 5. Abra um Pull Request
 
 ## Licença

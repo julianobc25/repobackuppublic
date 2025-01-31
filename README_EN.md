@@ -1,23 +1,24 @@
-# GitHub Repository Backup Tool
+# GitHub Repository Backup & Mirror Tool
 
 This tool allows you to create backups of your GitHub repositories by mirroring them to another GitHub account. It supports both public and private repositories, preserves all branches and tags, and maintains repository settings.
 
 ## Features
 
-- Mirror repositories from one GitHub account to another
-- Preserve all branches, tags, and commit history
-- Maintain repository settings (private/public status, description, etc.)
+- Complete repository mirroring between GitHub accounts
+- Preservation of all branches, tags, and commit history
+- Maintenance of repository settings (private/public status, description, etc.)
 - Resume interrupted backups
-- Track backup progress
-- Handle large repositories with retry mechanisms
-- Detailed logging of operations
-- Graphical User Interface (GUI) and Command Line Interface (CLI) support
-- Pause/Resume functionality (GUI mode)
+- Graphical User Interface (GUI) and Command Line Interface (CLI)
+- Pause/resume system with state persistence
+- Dynamic disk space verification
+- Configurable retry mechanism
+- Comprehensive token and permission validation
+- Token testing utility
 
 ## Prerequisites
 
 1. Python 3.8 or higher
-2. Git installed on your system
+2. Git installed on the system
 3. Two GitHub accounts:
    - Source account (where your repositories are)
    - Destination account (where backups will be stored)
@@ -38,7 +39,7 @@ pip install -r requirements.txt
 
 ## Configuration
 
-1. Create a `.env` file in the root directory with the following content:
+1. Create a `.env` file in the root directory (use `.env.example` as template):
 ```env
 # GitHub Tokens
 SOURCE_GITHUB_TOKEN=your_source_account_token
@@ -48,11 +49,20 @@ BACKUP_DIR=C:\path\to\your\backup\directory
 
 2. Generate GitHub Personal Access Tokens:
    - Go to GitHub Settings > Developer settings > Personal access tokens
-   - Generate tokens for both source and destination accounts
+   - Generate tokens for both accounts
    - Required permissions:
-     * `repo` (Full control of private repositories)
-     * `workflow` (Update GitHub Action workflows)
-     * `read:org` (Read organization data)
+     * Source account:
+       - `repo` (repository access)
+       - `read:org` (organization read)
+     * Destination account:
+       - `repo` (repository access)
+       - `delete_repo` (repository management)
+
+3. Test your tokens using the test utility:
+```bash
+cd scripts
+python test_token.py your_token
+```
 
 ## Usage
 
@@ -63,115 +73,88 @@ BACKUP_DIR=C:\path\to\your\backup\directory
 python github_backup.py
 ```
 
-2. The GUI will open with the following features:
-   - Input fields for source and destination tokens
-   - Backup directory selection
-   - Option to save configuration to .env file
-   - Start/Pause buttons
-   - Progress bar
-   - Status log window
+2. The graphical interface provides:
+   - Token validation with detailed feedback
+   - Retry count configuration
+   - Pause/resume system
+   - Real-time monitoring
+   - Incremental backup
+   - Configuration options
 
 ### CLI Mode
 
-1. Run in command-line mode:
+1. Run in command line mode:
 ```bash
 python github_backup.py --cli
 ```
 
-2. The tool will:
-   - Read configuration from .env file
-   - Validate your tokens
-   - Create the backup directory if it doesn't exist
-   - List all repositories in the source account
-   - Mirror each repository to the destination account
-   - Show progress as it works
-   - Provide a summary of completed and skipped repositories
-
-## Output Directory Structure
+## Project Structure
 
 ```
-backup_directory/
-├── repo1/              # Bare Git repository
-├── repo2/              # Bare Git repository
-└── ...
+project/
+├── backup_logic/           # Core logic
+│   ├── __init__.py
+│   ├── backup_execution.py
+│   ├── disk_space_check.py
+│   ├── github_operations.py
+│   ├── progress_management.py
+│   ├── repository_operations.py
+│   ├── token_validation.py
+│   └── tests/             # Unit and integration tests
+├── scripts/               # Utilities
+│   ├── test_token.py     # Token testing tool
+│   └── test_token.bat    # Windows wrapper
+├── old/                  # Deprecated files
+└── docs/                 # Documentation
 ```
 
-## Logs and Progress
+## Security
 
-- Operation logs are stored in `github_backup.log`
-- Error logs are stored in `error_log.log`
-- Backup progress is tracked in `backup_progress.json`
+- Tokens are validated for format and permissions
+- Specific scope verification
+- Secure subprocess handling
+- Atomic file operations
+- Log sanitization
 
 ## Error Handling
 
-The tool handles various scenarios:
-- Network interruptions (with automatic retries)
-- Repository access issues
-- Invalid tokens
-- Rate limiting
-- Repository not found errors
-
-If a repository fails to backup after 3 retries, it will be skipped and listed in the final summary.
+- Disk space verification
+- Comprehensive token validation
+- Configurable retry count
+- Automatic failure recovery
+- Detailed error logging
 
 ## Running Tests
 
-The project includes both unit tests and integration tests:
-
 ```bash
 # Run all tests
-python -m backup_logic.tests.run_tests
+python -m pytest backup_logic/tests/
 
-# Run specific test file
-python -m unittest backup_logic/tests/test_github_operations.py
+# Test specific token
+python scripts/test_token.py your_token
+
+# Check test coverage
+python -m pytest --cov=backup_logic tests/
 ```
 
 ## Troubleshooting
 
-1. "Token validation failed":
-   - Check if your tokens have the required permissions
-   - Verify tokens are correctly set in .env file
+1. Token issues:
+   - Use `scripts/test_token.py` for diagnostics
+   - Check required scopes
+   - Verify organization permissions
 
-2. "Repository not found":
-   - Verify the repository exists in source account
-   - Check if your token has access to the repository
-
-3. "Rate limit exceeded":
-   - Wait for a few minutes and try again
-   - GitHub API has rate limits that reset hourly
-
-4. "Push rejected":
-   - Check if destination account has enough private repository slots
-   - Verify destination token has repository creation permissions
-
-## GUI Features
-
-1. Token Management:
-   - Input fields for both source and destination tokens
-   - Option to save tokens to .env file for future use
-
-2. Backup Control:
-   - Start/Stop backup process
-   - Pause/Resume ongoing backups
-   - Real-time progress bar
-
-3. Status Monitoring:
-   - Scrollable status window showing current operations
-   - Error messages and warnings
-   - Success confirmations
-
-## Security Notes
-
-- Keep your .env file secure and never commit it to version control
-- Tokens should be treated as sensitive credentials
-- Use tokens with minimum required permissions
-- Regularly rotate your tokens for better security
+2. Backup errors:
+   - Check logs in `error_log.log`
+   - Adjust retry count
+   - Verify disk space
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (`git checkout -b feature/feature-name`)
+3. Run the tests (`python -m pytest`)
+4. Commit your changes
 5. Open a Pull Request
 
 ## License
