@@ -1,8 +1,10 @@
 import os
 import tkinter as tk
 import sys
-from dotenv import load_dotenv
-from backup_logic import BackupExecutor
+import os
+from dotenv import load_dotenv, find_dotenv
+from backup_logic.backup_execution import BackupExecutor
+from backup_logic import backup_execution
 from backup_logic.progress_management import ProgressManager
 from logger_config import setup_logger
 from error_logger import setup_error_logger
@@ -13,6 +15,7 @@ from threading import Event, Thread
 
 def run_cli():
     """Run the backup process in command line mode"""
+    load_dotenv(dotenv_path=os.path.join(os.getcwd(), '.env'))
     load_dotenv()
 
     logger = setup_logger()
@@ -46,7 +49,9 @@ def run_cli():
 
 def run_gui():
     """Run the backup process with GUI interface"""
-    load_dotenv()
+    # Reload environment variables without clearing existing ones
+    find_dotenv()
+    load_dotenv(override=True)
 
     root = tk.Tk()
     root.title("GitHub Repository Backup Tool")
@@ -169,3 +174,4 @@ if __name__ == "__main__":
         run_cli()
     else:
         run_gui()
+

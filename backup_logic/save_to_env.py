@@ -1,8 +1,8 @@
 import os
+from tkinter import messagebox
 
-def save_to_env(key, value):
-    with open('.env', 'a') as f:
-        f.write(f"{key}={value}\n")
+class ConfigSaver:
+    def __init__(self, gui_components, logger):
         self.gui_components = gui_components
         self.logger = logger
 

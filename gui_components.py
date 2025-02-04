@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, scrolledtext, filedialog, messagebox
 from ttkthemes import ThemedTk
 from backup_logic.token_validation import validate_tokens as validate_github_tokens
+from github import Github
 
 class BackupGUIComponents:
     def __init__(self, root, logger=None, error_logger=None):
@@ -47,6 +48,17 @@ class BackupGUIComponents:
         ttk.Label(source_frame, text="Token:").grid(row=0, column=0, sticky=tk.W)
         self.source_token_entry = ttk.Entry(source_frame, width=70)
         self.source_token_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
+
+        # Repository count refresh button and label
+        refresh_frame = ttk.Frame(source_frame)
+        refresh_frame.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(10, 0))
+        
+        self.repo_count_label = ttk.Label(refresh_frame, text="Repositórios: -")
+        self.repo_count_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.refresh_count_button = ttk.Button(refresh_frame, text="Atualizar Contagem", 
+                                             command=self.refresh_repo_count)
+        self.refresh_count_button.pack(side=tk.LEFT)
         
         # Destination Account Frame
         dest_frame = ttk.LabelFrame(self.main_frame, text="Conta de Destino", padding="10")
@@ -80,6 +92,15 @@ class BackupGUIComponents:
             text="Salvar configurações no arquivo .env",
             variable=self.save_config_var
         )
+        self.save_config_check.grid(row=0, column=0, sticky=tk.W)
+
+        # Save config button
+        self.save_config_button = ttk.Button(
+            options_frame,
+            text="Salvar Tokens",
+            command=self.save_tokens_to_env
+        )
+        self.save_config_button.grid(row=0, column=1, sticky=tk.W, padx=5)
         self.save_config_check.grid(row=0, column=0, sticky=tk.W)
         
         # Skip existing repos checkbox
@@ -167,6 +188,21 @@ class BackupGUIComponents:
             if self.error_logger:
                 self.error_logger.log_error(Exception(error_msg), "Token validation error")
 
+    def save_tokens_to_env(self):
+        source_token = self.source_token_entry.get().strip()
+        dest_token = self.dest_token_entry.get().strip()
+        backup_dir = self.backup_dir_entry.get().strip()
+
+        if not source_token or not dest_token or not backup_dir:
+            self.add_status_message("Erro: Todos os campos são obrigatórios", "error")
+            return
+
+        with open('.env', 'w') as f:
+            f.write(f"SOURCE_GITHUB_TOKEN={source_token}\n")
+            f.write(f"DEST_GITHUB_TOKEN={dest_token}\n")
+            f.write(f"BACKUP_DIR={backup_dir}\n")
+        self.add_status_message("Tokens salvos no arquivo .env", "success")
+
     def browse_directory(self):
         """Open directory browser dialog"""
         directory = filedialog.askdirectory(
@@ -203,7 +239,7 @@ class BackupGUIComponents:
         self.status_area.insert(tk.END, f"[{timestamp}] ", "timestamp")
         self.status_area.insert(tk.END, f"{message}\n", message_type)
         self.status_area.see(tk.END)  # Auto-scroll to bottom
-        
+
     def clear_status(self):
         """Clear the status area"""
         self.status_area.delete(1.0, tk.END)
@@ -215,3 +251,32 @@ class BackupGUIComponents:
     def show_success(self, title, message):
         """Show success message box"""
         messagebox.showinfo(title, message)
+
+    def refresh_repo_count(self):
+        """Refresh the repository count for the source account"""
+        source_token = self.source_token_entry.get().strip()
+        
+        if not source_token:
+            self.add_status_message("Erro: Token de origem é necessário", "error")
+            self.repo_count_label.config(text="Repositórios: -")
+            return
+            
+        try:
+            try:
+                # Try to ping GitHub API first to check connectivity
+                import socket
+                socket.create_connection(("api.github.com", 443), timeout=5)
+                
+                # Create a GitHub client and get repository count
+                g = Github(source_token)
+                user = g.get_user()
+                repos = list(user.get_repos())
+                count = len(repos)
+                self.repo_count_label.config(text=f"Repositórios: {count}")
+                self.add_status_message(f"Contagem atualizada: {count} repositórios encontrados", "success")
+            except socket.error:
+                raise Exception("Não foi possível conectar ao GitHub. Verifique sua conexão com a internet.")
+        except Exception as e:
+            error_msg = f"Erro ao obter contagem: {str(e)}"
+            self.add_status_message(error_msg, "error")
+            self.repo_count_label.config(text="Repositórios: -")
