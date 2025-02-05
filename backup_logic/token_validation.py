@@ -44,26 +44,28 @@ def _validate_scopes(token, required_scopes, token_type, logger):
         # Primeiro tenta obter os escopos via API
         response = requests.get(
             'https://api.github.com/user',
-            headers={'Authorization': f'token {token}'}
+            headers={'Authorization': f'Bearer {token}'}
         )
         response.raise_for_status()
 
         # Obtém os escopos do cabeçalho
         if 'X-OAuth-Scopes' in response.headers:
+            # Get scopes from header first
+            logger.info(f'Headers: {response.headers}')
             scopes = [s.strip() for s in response.headers['X-OAuth-Scopes'].split(',') if s.strip()]
             logger.info(f"Escopos encontrados para token {token_type}: {', '.join(scopes)}")
         else:
             # Se não houver cabeçalho de escopos, pode ser um token de acesso pessoal
             scopes = ['repo']  # Assume acesso total para tokens clássicos
             logger.info(f"Token {token_type} parece ser um token de acesso pessoal clássico")
-        
+
         # Verifica cada tipo de permissão necessária
         missing_permissions = []
-        
+
         for perm_type, scope_options in required_scopes.items():
             if not _has_required_scope(scopes, scope_options):
                 missing_permissions.append(perm_type)
-        
+
         if missing_permissions:
             # Se encontrou permissões faltando, tenta validar através de chamadas API específicas
             try:
@@ -74,16 +76,14 @@ def _validate_scopes(token, required_scopes, token_type, logger):
                     list(g.get_user().get_repos(type='private'))
                     missing_permissions.remove('repo')
                     logger.info(f"Token {token_type} tem acesso a repositórios confirmado via API")
-                
-                # Testa acesso a organizações
+             # Testa acesso a organizações
                 if 'org' in missing_permissions:
                     g = Github(token)
                     # Tenta listar organizações
                     list(g.get_user().get_orgs())
                     missing_permissions.remove('org')
                     logger.info(f"Token {token_type} tem acesso a organizações confirmado via API")
-                
-                # Testa permissão de deleção
+             # Testa permissão de deleção
                 if 'delete' in missing_permissions and token_type == 'destino':
                     g = Github(token)
                     user = g.get_user()
@@ -94,7 +94,7 @@ def _validate_scopes(token, required_scopes, token_type, logger):
                     logger.info(f"Token {token_type} tem permissão de deleção confirmada via API")
             except Exception as e:
                 logger.info(f"Erro ao verificar permissões via API para {token_type}: {str(e)}")
-        
+
         if missing_permissions:
             missing_scopes = []
             for perm in missing_permissions:
@@ -102,7 +102,7 @@ def _validate_scopes(token, required_scopes, token_type, logger):
             raise Exception(
                 f"Token {token_type} não possui as permissões necessárias: {', '.join(set(missing_scopes))}"
             )
-            
+
         return True
     except requests.RequestException as e:
         raise Exception(f"Erro ao validar escopos do token {token_type}: {str(e)}")
@@ -112,7 +112,7 @@ def validate_token(token):
     try:
         if not _validate_token_format(token):
             return False
-            
+
         g = Github(token)
         g.get_user().login
         return True
@@ -126,7 +126,10 @@ def validate_tokens(source_token, dest_token, logger, error_logger):
 
     Verifica se os tokens de origem e destino são válidos e se a conta
     de destino tem todas as permissões necessárias
+  
+
     """
+
     try:
         # Valida formato dos tokens
         if not _validate_token_format(source_token):
@@ -140,7 +143,8 @@ def validate_tokens(source_token, dest_token, logger, error_logger):
             source_user = source_github.get_user()
             source_user.id
             _check_rate_limits(source_github, logger)
-            _validate_scopes(source_token, REQUIRED_SCOPES['source'], 'origem', logger)
+            source_scopes = REQUIRED_SCOPES['source'].copy()
+            _validate_scopes(source_token, source_scopes, 'origem', logger)
             logger.info(f"Token de origem validado para usuário: {source_user.login}")
         except Exception as e:
             raise Exception(f"Erro na validação do token de origem: {str(e)}")
@@ -153,8 +157,7 @@ def validate_tokens(source_token, dest_token, logger, error_logger):
             _check_rate_limits(dest_github, logger)
             _validate_scopes(dest_token, REQUIRED_SCOPES['dest'], 'destino', logger)
             logger.info(f"Token de destino validado para usuário: {dest_user.login}")
-            
-            # Testa permissões específicas na conta destino
+         # Testa permissões específicas na conta destino
             private_repos = list(dest_user.get_repos(type='private'))
             logger.info("Permissão de leitura de repos privados verificada")
 
@@ -171,5 +174,8 @@ def validate_tokens(source_token, dest_token, logger, error_logger):
         return True
 
     except Exception as e:
+        # Log the error but also re-raise it so callers can handle it
         error_logger.log_error(e, "Erro na validação dos tokens")
-        raise
+        logger.error(f"Detalhes do erro de validação: {str(e)}")
+        # Re-raise with more specific error message
+        raise Exception(f"Erro na validação dos tokens: {str(e)}")

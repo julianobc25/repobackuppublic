@@ -15,11 +15,16 @@ This document outlines the system patterns and architectural decisions made duri
 - Network Connectivity Check: Pre-emptive connection testing before API calls
 - User-Friendly Error Messages: Translating technical errors into understandable messages
 - Layered Error Handling: Specific error handling at each architectural layer
+- GUI Section Modularity: Dividing GUI components into separate modules for maintainability
 
 ## Environment Management
 - Dynamic Environment Loading: Using python-dotenv with forced reloading
 - Configuration Persistence: Saving and loading configurations from .env files
 - Token Refresh Pattern: Ensuring environment variables are always up-to-date
+
+## GUI Patterns
+- Section-Based GUI: Dividing GUI into logical sections (Token, Backup, Options, Status, Control) each in its own class/file.
+- Command Delegation: Using commands/callbacks to handle actions from GUI sections in main component.
 
 ## Key Decisions
 - Decision 1: Adoption of a modular architecture to enhance maintainability.

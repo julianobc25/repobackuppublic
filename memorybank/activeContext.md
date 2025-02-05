@@ -23,3 +23,21 @@ This document captures the current active tasks and decisions made during the pr
 - Monitor the effectiveness of the new token refresh system
 - Consider adding automatic retry mechanism for network-related failures
 - Add network status indicator in the GUI for better user feedback
+
+## Recent Changes
+- Improved environment variable loading system to properly refresh tokens from .env file on program startup
+- Added network connectivity check before GitHub API calls with socket-level testing
+- Enhanced error handling for network-related issues with user-friendly messages
+- Reorganized token saving logic into a proper ConfigSaver class
+- Refactored `gui_components.py` into modular section files (TokenSection, BackupSection, OptionsSection, StatusSection, ControlSection).
+- Implemented "limit repositories" feature with a spinbox in OptionsSection.
+- Fixed progress bar update issues by ensuring GUI updates are done in the main thread.
+
+## Next Steps
+- Verify that progress bar is updating correctly during backup.
+- User acceptance testing of the refactored GUI and the new "limit repositories" feature.
+- Consider adding more advanced options in the OptionsSection, such as filtering repositories by name or visibility.
+- Document the new GUI architecture and "limit repositories" feature in the documentation.
+- Monitor the effectiveness of the new token refresh system
+- Consider adding automatic retry mechanism for network-related failures
+- Add network status indicator in the GUI for better user feedback

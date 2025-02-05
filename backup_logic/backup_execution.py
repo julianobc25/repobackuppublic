@@ -18,7 +18,7 @@ class BackupExecutor:
         self.repo_ops = RepositoryOperations(logger, error_logger)
         self.github_ops = GithubOperations(logger, error_logger)
 
-    def run_backup(self, source_token, dest_token, backup_dir, progress_var, is_running, pause_event, cancel_event, retry_count):
+    def run_backup(self, source_token, dest_token, backup_dir, progress_var, is_running, pause_event, cancel_event, retry_count, repo_limit):
         """Execute the backup process for all repositories."""
         self.is_running = is_running
         self.pause_event = pause_event
@@ -33,6 +33,12 @@ class BackupExecutor:
             ignored_repos = self._load_ignored_repos()
             repos = self.github_ops.get_source_repos()
             repos_to_backup = [repo for repo in repos if repo.name not in ignored_repos]
+
+            if repo_limit is not None:
+                repos_to_backup = repos_to_backup[:repo_limit]
+                self.logger.info(f"Limitando backup para os {repo_limit} primeiros repositórios.")
+
+
             total_repos = len(repos_to_backup)
             self.logger.info(f"Iniciando backup/mirror de {total_repos} repositórios (ignorando {len(ignored_repos)} repositórios)")
 
@@ -98,8 +104,13 @@ class BackupExecutor:
 
     def _validate_tokens(self):
         """Validate both tokens have necessary permissions."""
-        if not validate_tokens(self._source_token, self._dest_token, self.logger, self.error_logger):
-            raise ValueError("Token validation failed. Please check your tokens and permissions.")
+        try:
+            validate_tokens(self._source_token.strip(), self._dest_token.strip(), self.logger, self.error_logger)
+        except Exception as e:
+            self.logger.error(f"Falha na validação dos tokens: {str(e)}")
+            self.error_logger.log_error(e, "Falha na validação dos tokens")
+            # Re-raise with clear error message
+            raise ValueError(f"Falha na validação dos tokens. Detalhes: {str(e)}")
 
     def _setup_backup_directory(self, backup_dir):
         """Create and verify backup directory."""
@@ -172,7 +183,8 @@ class BackupExecutor:
             raise
 
     def _update_progress(self, current_index, total_repos, progress_var):
-        """Update progress bar."""
+        """Update progress bar in the main thread."""
         if progress_var:
             progress = (current_index / total_repos) * 100
             progress_var.set(progress)
+            progress_var.widget.update_idletasks()  # Force GUI update

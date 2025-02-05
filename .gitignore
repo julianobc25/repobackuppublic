@@ -10,6 +10,7 @@ backup_progress.json
 
 # Diretório de backup padrão
 github_backups/
+old/
 
 # IDEs e editores
 .vscode/
