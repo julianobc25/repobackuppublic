@@ -1,13 +1,13 @@
 # Postagem para o LinkedIn: Ferramenta de Backup de Repositórios GitHub - Versão em Português
 
-🚀 Pare de perder o sono com backups do GitHub! Apresento minha nova **Ferramenta de Backup de Repositórios GitHub** - sua solução open-source para ter paz de espírito! 🚀
+🚀 Já pensou que algum dia fosse necessário fazer o backup de um repositório inteiro ? Eu também não, mas acabei precisando e compartilho o resultado com vocês !  Apresento minha nova **Ferramenta de Backup de Repositórios GitHub** - sua solução open-source para ter paz de espírito! 🚀
 
 Cansado de se preocupar em perder seu código valioso? Esta ferramenta facilita:
 
 ✅ **Backup Seguro** de TODOS os seus repositórios GitHub - públicos e privados!
 ✅ **Mirroring Sem Esforço** de repositórios entre contas.
 ✅ **Proteja seu trabalho** com histórico completo, configurações e definições preservadas.
-✅ **NOVO! Limite o Escopo do Backup:** Escolha fazer backup de TODOS os repositórios ou apenas dos primeiros - você está no controle!
+✅ **! Limite o Escopo do Backup:** Escolha fazer backup de TODOS os repositórios ou apenas dos primeiros - você está no controle!
 ✅ **GUI Fácil de Usar:** Sem necessidade de expertise em linha de comando! Acompanhe o progresso visualmente e gerencie backups com facilidade.
 
 Construída com Python, Tkinter e PyGithub, esta ferramenta robusta garante que seu código esteja seguro, protegido e sempre acessível.
