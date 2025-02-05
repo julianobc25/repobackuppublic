@@ -1,6 +1,6 @@
 # Postagem para o LinkedIn: Ferramenta de Backup de Repositórios GitHub - Versão em Português
 
-🚀 Já pensou que algum dia fosse necessário fazer o backup de um repositório inteiro ? Eu também não, mas acabei precisando e compartilho o resultado com vocês !  Apresento minha nova **Ferramenta de Backup de Repositórios GitHub** - sua solução open-source para ter paz de espírito! 🚀
+🚀 Já pensou que algum dia fosse necessário fazer o backup de um repositório inteiro ? Eu também não, mas acabei precisando e compartilho o resultado com vocês !  Apresento uma **Ferramenta de Backup de Repositórios GitHub** - sua solução open-source para ter paz de espírito! 🚀
 
 Cansado de se preocupar em perder seu código valioso? Esta ferramenta facilita:
 

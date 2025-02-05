@@ -30,8 +30,8 @@ Esta ferramenta permite criar backups dos seus repositórios GitHub espelhando-o
 
 1. Clone este repositório:
 ```bash
-git clone https://github.com/yourusername/github-backup-tool.git
-cd github-backup-tool
+git clone https://github.com/julianobc25/repobackuppublic.git
+cd repobackuppublic
 ```
 
 2. Instale as dependências necessárias:
@@ -107,7 +107,6 @@ projeto/
 │   ├── test_token.py     # Ferramenta de teste de tokens
 │   └── test_token.bat    # Wrapper para Windows
 ├── old/                  # Arquivos deprecados
-└── docs/                 # Documentação
 ```
 
 ## Segurança
